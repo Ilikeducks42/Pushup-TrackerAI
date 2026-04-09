@@ -33,6 +33,7 @@ A browser-based pushup counter powered by [Teachable Machine](https://teachablem
 4. Click **Train Model**
 5. Click **Export Model** → choose **TensorFlow.js** → **Upload (shareable link)**
 6. Copy the URL (looks like `https://teachablemachine.withgoogle.com/models/xxxxxxxx/`)
+You can also use this Pre-Made model: https://teachablemachine.withgoogle.com/models/jJi-ZhvH0/
 
 ---
 

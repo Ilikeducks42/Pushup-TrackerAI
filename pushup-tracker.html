@@ -107,6 +107,7 @@ select { background:#16161c; border:1px solid #25252e; border-radius:8px; color:
 <div class="class-config" id="classConfig">
   <div class="class-select"><label>Oben-Klasse</label><select id="upClass"></select></div>
   <div class="class-select"><label>Unten-Klasse</label><select id="downClass"></select></div>
+  <div class="class-select"><label>Other-Klasse</label><select id="otherClass"></select></div>
 </div>
 <div class="stats-row" id="statsRow">
   <div class="stat-card">
@@ -260,11 +261,14 @@ function updateUI(pose, pred) {
   });
   var upIdx=parseInt(document.getElementById('upClass').value);
   var dnIdx=parseInt(document.getElementById('downClass').value);
+  var otIdx=parseInt(document.getElementById('otherClass').value);
   var upConf=pred[upIdx]?pred[upIdx].probability:0;
   var dnConf=pred[dnIdx]?pred[dnIdx].probability:0;
+  var otConf=pred[otIdx]?pred[otIdx].probability:0;
   var phase=null;
-  if(upConf>CONFIDENCE) phase='up';
-  else if(dnConf>CONFIDENCE) phase='down';
+  var otherWins=otConf>upConf&&otConf>dnConf;
+  if(!otherWins&&upConf>CONFIDENCE) phase='up';
+  else if(!otherWins&&dnConf>CONFIDENCE) phase='down';
   var pill=document.getElementById('phasePill');
   if(phase==='up'){pill.textContent='OBEN';pill.className='phase-pill up';}
   else if(phase==='down'){pill.textContent='UNTEN';pill.className='phase-pill down';}
@@ -301,13 +305,15 @@ function drawPose(pose) {
 }
 
 function setupClassSelects(){
-  var up=document.getElementById('upClass'),dn=document.getElementById('downClass');
-  up.innerHTML=dn.innerHTML='';
+  var up=document.getElementById('upClass'),dn=document.getElementById('downClass'),ot=document.getElementById('otherClass');
+  up.innerHTML=dn.innerHTML=ot.innerHTML='';
   classNames.forEach(function(n,i){
     up.innerHTML+='<option value="'+i+'">'+n+'</option>';
     dn.innerHTML+='<option value="'+i+'">'+n+'</option>';
+    ot.innerHTML+='<option value="'+i+'">'+n+'</option>';
   });
   if(classNames.length>=2){up.value='0';dn.value='1';}
+  if(classNames.length>=3){ot.value='2';}
   document.getElementById('classConfig').classList.add('show');
 }
 function buildBars(){

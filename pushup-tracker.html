@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pushup Tracker</title>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet@2.2.2/dist/posenet.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8.6/dist/teachablemachine-pose.min.js"></script>
+<!-- Exakt die Links die Teachable Machine selbst in ihrem Export-Code anzeigt -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:-apple-system,'Helvetica Neue',sans-serif; background:#0c0c0f; color:#f0f0ee; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:2rem 1.5rem 3rem; gap:1rem; }
@@ -20,27 +20,20 @@ button { background:#f0f0ee; color:#0c0c0f; border:none; border-radius:10px; pad
 button:hover { background:#fff; }
 button.ghost { background:transparent; color:#4a4a58; border:1px solid #25252e; }
 button.ghost:hover { color:#888; border-color:#3a3a4a; background:transparent; }
-
-/* ── STATUS PANEL ── */
 .status-panel { width:100%; max-width:800px; background:#16161c; border:1px solid #1e1e28; border-radius:14px; padding:1rem 1.25rem; display:flex; flex-direction:column; gap:0.6rem; }
 .status-row { display:flex; align-items:center; gap:0.75rem; font-size:0.78rem; }
 .s-dot { width:9px; height:9px; border-radius:50%; background:#2a2a36; flex-shrink:0; transition:background 0.3s; }
 .s-dot.ok   { background:#4ade80; box-shadow:0 0 6px #4ade80; }
 .s-dot.err  { background:#f87171; box-shadow:0 0 6px #f87171; }
-.s-dot.warn { background:#fbbf24; box-shadow:0 0 6px #fbbf24; }
-.s-dot.pulse { animation:pulse 1s infinite; }
+.s-dot.warn { background:#fbbf24; box-shadow:0 0 6px #fbbf24; animation:pulse 1s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 .s-label { color:#55556a; width:130px; flex-shrink:0; }
 .s-val { color:#f0f0ee; flex:1; font-size:0.75rem; }
-
-/* ── DEBUG LOG ── */
-.dbg { width:100%; max-width:800px; background:#0e0e14; border:1px solid #1a1a24; border-radius:10px; padding:0.75rem 1rem; font-family:'Courier New',monospace; font-size:0.68rem; color:#4ade80; max-height:140px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; }
+.dbg { width:100%; max-width:800px; background:#0e0e14; border:1px solid #1a1a24; border-radius:10px; padding:0.75rem 1rem; font-family:'Courier New',monospace; font-size:0.68rem; color:#4ade80; max-height:120px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; }
 .dbg .line { line-height:1.5; }
-.dbg .line.err { color:#f87171; }
+.dbg .line.err  { color:#f87171; }
 .dbg .line.warn { color:#fbbf24; }
 .dbg .line.info { color:#60a5fa; }
-
-/* ── CAM ── */
 .cam-wrap { width:100%; max-width:800px; position:relative; border-radius:18px; overflow:hidden; background:#10101a; aspect-ratio:4/3; }
 #video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
 #overlay { position:absolute; inset:0; width:100%; height:100%; }
@@ -57,8 +50,6 @@ button.ghost:hover { color:#888; border-color:#3a3a4a; background:transparent; }
 .live-badge { position:absolute; top:1rem; right:1rem; display:flex; align-items:center; gap:0.4rem; background:rgba(0,0,0,0.5); border-radius:999px; padding:0.3rem 0.7rem; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.3); border:1px solid rgba(255,255,255,0.08); }
 .live-badge .dot { width:6px; height:6px; border-radius:50%; background:#333; transition:background 0.3s; }
 .live-badge .dot.on { background:#4ade80; box-shadow:0 0 6px #4ade80; }
-
-/* ── BARS ── */
 .stats-row { width:100%; max-width:800px; display:none; grid-template-columns:1fr 1fr; gap:0.75rem; }
 .stats-row.show { display:grid; }
 .stat-card { background:#16161c; border:1px solid #1e1e28; border-radius:14px; padding:1rem 1.25rem; }
@@ -77,18 +68,14 @@ select { background:#16161c; border:1px solid #25252e; border-radius:8px; color:
 </style>
 </head>
 <body>
-
 <div class="topbar">
   <span class="logo">Pushup Tracker</span>
   <button class="ghost" onclick="resetCount()">Reset</button>
 </div>
-
 <div class="url-row">
   <input type="text" id="modelUrl" placeholder="Teachable Machine URL..." />
   <button onclick="startTracker()">Start</button>
 </div>
-
-<!-- STATUS PANEL -->
 <div class="status-panel">
   <div class="status-row"><div class="s-dot" id="st-tf"></div><span class="s-label">TensorFlow.js</span><span class="s-val" id="sv-tf">wartend...</span></div>
   <div class="status-row"><div class="s-dot" id="st-tm"></div><span class="s-label">Teachable Machine</span><span class="s-val" id="sv-tm">wartend...</span></div>
@@ -96,11 +83,7 @@ select { background:#16161c; border:1px solid #25252e; border-radius:8px; color:
   <div class="status-row"><div class="s-dot" id="st-pose"></div><span class="s-label">Pose-Erkennung</span><span class="s-val" id="sv-pose">wartend...</span></div>
   <div class="status-row"><div class="s-dot" id="st-pred"></div><span class="s-label">Konfidenz-Signal</span><span class="s-val" id="sv-pred">wartend...</span></div>
 </div>
-
-<!-- DEBUG LOG -->
 <div class="dbg" id="dbg"></div>
-
-<!-- CAM -->
 <div class="cam-wrap">
   <video id="video" playsinline autoplay muted></video>
   <canvas id="overlay"></canvas>
@@ -121,12 +104,10 @@ select { background:#16161c; border:1px solid #25252e; border-radius:8px; color:
   </div>
   <div class="live-badge"><span class="dot" id="liveDot"></span>Live</div>
 </div>
-
 <div class="class-config" id="classConfig">
   <div class="class-select"><label>Oben-Klasse</label><select id="upClass"></select></div>
   <div class="class-select"><label>Unten-Klasse</label><select id="downClass"></select></div>
 </div>
-
 <div class="stats-row" id="statsRow">
   <div class="stat-card">
     <div class="stat-label">Konfidenz</div>
@@ -147,85 +128,72 @@ var count = 0, lastPhase = null, classNames = [], running = false;
 var CONFIDENCE = 0.72;
 var frameCount = 0, lastFrameTime = Date.now();
 
-// ── DEBUG HELPERS ──
 function dbg(msg, type) {
   var box = document.getElementById('dbg');
   var d = new Date();
-  var ts = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ':' + d.getSeconds().toString().padStart(2,'0');
+  var ts = d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0');
   var line = document.createElement('div');
-  line.className = 'line ' + (type||'');
-  line.textContent = '[' + ts + '] ' + msg;
+  line.className = 'line '+(type||'');
+  line.textContent = '['+ts+'] '+msg;
   box.appendChild(line);
   box.scrollTop = box.scrollHeight;
-  console.log(msg);
 }
-
 function setStatus(id, state, val) {
-  var dot = document.getElementById('st-' + id);
-  var valEl = document.getElementById('sv-' + id);
-  dot.className = 's-dot ' + state + (state === 'warn' ? ' pulse' : '');
+  var dot = document.getElementById('st-'+id);
+  var valEl = document.getElementById('sv-'+id);
+  dot.className = 's-dot '+state;
   if (valEl && val !== undefined) valEl.textContent = val;
 }
 
-// ── CHECK TF LOADED ──
 window.addEventListener('load', function() {
   if (typeof tf !== 'undefined') {
-    setStatus('tf', 'ok', 'v' + tf.version.tfjs + ' geladen');
-    dbg('TensorFlow.js v' + tf.version.tfjs + ' OK', 'info');
+    setStatus('tf','ok','v'+tf.version.tfjs+' geladen');
+    dbg('TensorFlow.js v'+tf.version.tfjs,'info');
   } else {
-    setStatus('tf', 'err', 'NICHT geladen!');
-    dbg('TensorFlow.js FEHLT - CDN blockiert?', 'err');
+    setStatus('tf','err','NICHT geladen!');
+    dbg('TF FEHLT','err');
   }
   if (typeof tmPose !== 'undefined') {
-    setStatus('tm', 'ok', 'Bibliothek geladen');
-    dbg('Teachable Machine Pose lib OK', 'info');
+    setStatus('tm','ok','Bibliothek bereit');
+    dbg('tmPose OK','info');
   } else {
-    setStatus('tm', 'err', 'NICHT geladen!');
-    dbg('tmPose FEHLT - CDN blockiert?', 'err');
+    setStatus('tm','err','NICHT geladen!');
+    dbg('tmPose FEHLT','err');
   }
 });
 
 async function startTracker() {
   if (running) return;
   var url = document.getElementById('modelUrl').value.trim();
-  if (!url) { dbg('Keine URL eingegeben!', 'err'); return; }
+  if (!url) { dbg('Keine URL!','err'); return; }
   if (!url.endsWith('/')) url += '/';
 
-  // Check libs again
-  if (typeof tmPose === 'undefined') {
-    setStatus('tm', 'err', 'tmPose nicht verfuegbar');
-    dbg('tmPose ist undefined - Scripts nicht geladen', 'err'); return;
-  }
-
-  dbg('Lade Modell von: ' + url);
-  setStatus('tm', 'warn', 'Lade...');
+  setStatus('tm','warn','Lade Modell...');
+  dbg('Lade: '+url);
   try {
-    model = await tmPose.load(url + 'model.json', url + 'metadata.json');
+    model = await tmPose.load(url+'model.json', url+'metadata.json');
     classNames = model.getClassLabels();
-    setStatus('tm', 'ok', 'Klassen: ' + classNames.join(', '));
-    dbg('Modell geladen! Klassen: ' + classNames.join(', '), 'info');
+    setStatus('tm','ok','Klassen: '+classNames.join(', '));
+    dbg('Modell OK: '+classNames.join(', '),'info');
     setupClassSelects(); buildBars();
   } catch(e) {
-    setStatus('tm', 'err', e.message);
-    dbg('Modell-Fehler: ' + e.message, 'err');
-    dbg('Typ: ' + e.name, 'err');
+    setStatus('tm','err',e.message);
+    dbg('Modell-Fehler: '+e.message,'err');
     console.error(e); return;
   }
 
-  dbg('Fordere Kamera an...');
-  setStatus('cam', 'warn', 'Fordere Zugriff an...');
+  setStatus('cam','warn','Zugriff...');
   try {
-    var stream = await navigator.mediaDevices.getUserMedia({ video:{ width:640, height:480 }, audio:false });
+    var stream = await navigator.mediaDevices.getUserMedia({video:{width:640,height:480},audio:false});
     video = document.getElementById('video');
     video.srcObject = stream;
-    await new Promise(function(res) { video.onloadeddata = res; });
-    var track = stream.getVideoTracks()[0];
-    var settings = track.getSettings();
-    setStatus('cam', 'ok', settings.width + 'x' + settings.height + ' @ ' + (settings.frameRate|0) + 'fps');
-    dbg('Kamera OK: ' + settings.width + 'x' + settings.height, 'info');
+    await new Promise(function(res){ video.onloadeddata = res; });
+    var s = stream.getVideoTracks()[0].getSettings();
+    setStatus('cam','ok',s.width+'x'+s.height+' @ '+(s.frameRate|0)+'fps');
+    dbg('Kamera: '+s.width+'x'+s.height,'info');
   } catch(e) {
-    setStatus('cam', 'err', e.message);
-    dbg('Kamera-Fehler: ' + e.message, 'err'); return;
+    setStatus('cam','err',e.message);
+    dbg('Kamera-Fehler: '+e.message,'err'); return;
   }
 
   overlayCanvas = document.getElementById('overlay');
@@ -236,16 +204,14 @@ async function startTracker() {
   offscreen.width  = overlayCanvas.width;
   offscreen.height = overlayCanvas.height;
   offCtx = offscreen.getContext('2d');
-  dbg('Offscreen canvas: ' + offscreen.width + 'x' + offscreen.height, 'info');
 
   document.getElementById('placeholder').style.display = 'none';
   document.getElementById('liveDot').classList.add('on');
   document.getElementById('statsRow').classList.add('show');
-
-  setStatus('pose', 'warn', 'Starte...');
-  setStatus('pred', 'warn', 'Warte auf ersten Frame...');
+  setStatus('pose','warn','Starte...');
+  setStatus('pred','warn','Warte...');
   running = true;
-  dbg('Loop gestartet', 'info');
+  dbg('Loop gestartet','info');
   poseLoop();
 }
 
@@ -253,136 +219,110 @@ async function poseLoop() {
   if (!running) return;
   if (video.readyState >= 2) {
     offCtx.drawImage(video, 0, 0, offscreen.width, offscreen.height);
-
-    // Sanity check: is the canvas actually getting pixels?
-    var px = offCtx.getImageData(offscreen.width/2|0, offscreen.height/2|0, 1, 1).data;
-    var brightness = px[0] + px[1] + px[2];
-    if (frameCount === 0) {
-      dbg('Erster Frame - Mittelpixel RGB: ' + px[0] + ',' + px[1] + ',' + px[2] + ' (Helligkeit: ' + brightness + ')', brightness < 30 ? 'warn' : 'info');
-      if (brightness < 30) dbg('WARNUNG: Canvas ist schwarz! Video hat moeglicherweise keine Pixel.', 'warn');
-    }
-
     try {
       var result = await model.estimatePose(offscreen);
       frameCount++;
-
       if (frameCount === 1) {
-        setStatus('pose', 'ok', 'Laeuft');
-        dbg('Pose-Erkennung arbeitet! Keypoints: ' + result.pose.keypoints.length, 'info');
+        setStatus('pose','ok','Laeuft');
+        dbg('Pose OK! Keypoints: '+result.pose.keypoints.length,'info');
       }
-
       var pred = await model.predict(result.posenetOutput);
-
       if (frameCount === 1) {
-        var predStr = pred.map(function(p) { return p.className + ': ' + (p.probability*100).toFixed(1) + '%'; }).join(' | ');
-        setStatus('pred', 'ok', 'Empfange Signal');
-        dbg('Erster Predict: ' + predStr, 'info');
+        var ps = pred.map(function(p){return p.className+': '+(p.probability*100).toFixed(1)+'%';}).join(' | ');
+        setStatus('pred','ok','Signal OK');
+        dbg('Predict: '+ps,'info');
       }
-
-      // FPS alle 30 frames
       if (frameCount % 30 === 0) {
-        var now = Date.now();
-        var fps = (30 / ((now - lastFrameTime) / 1000)).toFixed(1);
-        lastFrameTime = now;
-        setStatus('pose', 'ok', frameCount + ' frames, ~' + fps + ' fps');
+        var fps = (30/((Date.now()-lastFrameTime)/1000)).toFixed(1);
+        lastFrameTime = Date.now();
+        setStatus('pose','ok',frameCount+' frames ~'+fps+'fps');
       }
-
       updateUI(result.pose, pred);
     } catch(e) {
       if (frameCount === 0) {
-        setStatus('pose', 'err', e.message);
-        dbg('estimatePose Fehler: ' + e.message, 'err');
-        dbg('Stack: ' + (e.stack ? e.stack.split('\n')[1] : 'n/a'), 'err');
+        setStatus('pose','err',e.message);
+        dbg('Fehler: '+e.message,'err');
+        console.error(e);
       }
     }
-  } else {
-    if (frameCount === 0) dbg('Video readyState: ' + video.readyState + ' (warte auf Frames...)', 'warn');
   }
   setTimeout(poseLoop, 66);
 }
 
 function updateUI(pose, pred) {
-  overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
   if (pose) drawPose(pose);
-  pred.forEach(function(p, i) {
-    var pct = Math.round(p.probability * 100);
-    var b  = document.getElementById('bar-' + i);
-    var pe = document.getElementById('pct-' + i);
-    if (b)  b.style.width  = pct + '%';
-    if (pe) pe.textContent = pct + '%';
+  pred.forEach(function(p,i){
+    var pct=Math.round(p.probability*100);
+    var b=document.getElementById('bar-'+i),pe=document.getElementById('pct-'+i);
+    if(b) b.style.width=pct+'%';
+    if(pe) pe.textContent=pct+'%';
   });
-  var upIdx  = parseInt(document.getElementById('upClass').value);
-  var dnIdx  = parseInt(document.getElementById('downClass').value);
-  var upConf = pred[upIdx] ? pred[upIdx].probability : 0;
-  var dnConf = pred[dnIdx] ? pred[dnIdx].probability : 0;
-  var phase  = null;
-  if (upConf > CONFIDENCE)      phase = 'up';
-  else if (dnConf > CONFIDENCE) phase = 'down';
-  var pill = document.getElementById('phasePill');
-  if      (phase === 'up')   { pill.textContent='OBEN';  pill.className='phase-pill up'; }
-  else if (phase === 'down') { pill.textContent='UNTEN'; pill.className='phase-pill down'; }
-  else                       { pill.textContent='---';   pill.className='phase-pill'; }
-  if (phase === 'up' && lastPhase === 'down') {
+  var upIdx=parseInt(document.getElementById('upClass').value);
+  var dnIdx=parseInt(document.getElementById('downClass').value);
+  var upConf=pred[upIdx]?pred[upIdx].probability:0;
+  var dnConf=pred[dnIdx]?pred[dnIdx].probability:0;
+  var phase=null;
+  if(upConf>CONFIDENCE) phase='up';
+  else if(dnConf>CONFIDENCE) phase='down';
+  var pill=document.getElementById('phasePill');
+  if(phase==='up'){pill.textContent='OBEN';pill.className='phase-pill up';}
+  else if(phase==='down'){pill.textContent='UNTEN';pill.className='phase-pill down';}
+  else{pill.textContent='---';pill.className='phase-pill';}
+  if(phase==='up'&&lastPhase==='down'){
     count++;
-    var el  = document.getElementById('countNum');
-    var el2 = document.getElementById('bigCount2');
-    el.textContent = el2.textContent = count;
+    var el=document.getElementById('countNum'),el2=document.getElementById('bigCount2');
+    el.textContent=el2.textContent=count;
     el.classList.add('flash');
-    setTimeout(function() { el.classList.remove('flash'); }, 250);
+    setTimeout(function(){el.classList.remove('flash');},250);
   }
-  if (phase !== null) lastPhase = phase;
+  if(phase!==null) lastPhase=phase;
 }
 
 function drawPose(pose) {
-  var W = overlayCanvas.width;
-  function mx(x) { return W - x; }
-  var pairs = [[5,6],[5,7],[7,9],[6,8],[8,10],[5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16]];
-  overlayCtx.strokeStyle = 'rgba(74,222,128,0.65)';
-  overlayCtx.lineWidth = 2.5;
-  pairs.forEach(function(p) {
-    var kA = pose.keypoints[p[0]], kB = pose.keypoints[p[1]];
-    if (kA.score > 0.25 && kB.score > 0.25) {
-      overlayCtx.beginPath();
-      overlayCtx.moveTo(mx(kA.position.x), kA.position.y);
-      overlayCtx.lineTo(mx(kB.position.x), kB.position.y);
-      overlayCtx.stroke();
+  var W=overlayCanvas.width;
+  function mx(x){return W-x;}
+  var pairs=[[5,6],[5,7],[7,9],[6,8],[8,10],[5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16]];
+  overlayCtx.strokeStyle='rgba(74,222,128,0.65)';
+  overlayCtx.lineWidth=2.5;
+  pairs.forEach(function(p){
+    var kA=pose.keypoints[p[0]],kB=pose.keypoints[p[1]];
+    if(kA.score>0.25&&kB.score>0.25){
+      overlayCtx.beginPath();overlayCtx.moveTo(mx(kA.position.x),kA.position.y);
+      overlayCtx.lineTo(mx(kB.position.x),kB.position.y);overlayCtx.stroke();
     }
   });
-  pose.keypoints.forEach(function(k) {
-    if (k.score > 0.25) {
-      overlayCtx.fillStyle = 'rgba(74,222,128,0.9)';
-      overlayCtx.beginPath();
-      overlayCtx.arc(mx(k.position.x), k.position.y, 4, 0, 2*Math.PI);
-      overlayCtx.fill();
+  pose.keypoints.forEach(function(k){
+    if(k.score>0.25){
+      overlayCtx.fillStyle='rgba(74,222,128,0.9)';
+      overlayCtx.beginPath();overlayCtx.arc(mx(k.position.x),k.position.y,4,0,2*Math.PI);overlayCtx.fill();
     }
   });
 }
 
-function setupClassSelects() {
-  var up = document.getElementById('upClass'), dn = document.getElementById('downClass');
-  up.innerHTML = dn.innerHTML = '';
-  classNames.forEach(function(n, i) {
-    up.innerHTML += '<option value="'+i+'">'+n+'</option>';
-    dn.innerHTML += '<option value="'+i+'">'+n+'</option>';
+function setupClassSelects(){
+  var up=document.getElementById('upClass'),dn=document.getElementById('downClass');
+  up.innerHTML=dn.innerHTML='';
+  classNames.forEach(function(n,i){
+    up.innerHTML+='<option value="'+i+'">'+n+'</option>';
+    dn.innerHTML+='<option value="'+i+'">'+n+'</option>';
   });
-  if (classNames.length >= 2) { up.value='0'; dn.value='1'; }
+  if(classNames.length>=2){up.value='0';dn.value='1';}
   document.getElementById('classConfig').classList.add('show');
 }
-
-function buildBars() {
-  var c = document.getElementById('bars'); c.innerHTML = '';
-  classNames.forEach(function(n, i) {
-    c.innerHTML += '<div class="bar-row"><span class="bar-name">'+n+'</span>'
+function buildBars(){
+  var c=document.getElementById('bars');c.innerHTML='';
+  classNames.forEach(function(n,i){
+    c.innerHTML+='<div class="bar-row"><span class="bar-name">'+n+'</span>'
       +'<div class="bar-track"><div class="bar-fill" id="bar-'+i+'" style="width:0%"></div></div>'
       +'<span class="bar-pct" id="pct-'+i+'">0%</span></div>';
   });
 }
-
-function resetCount() {
-  count = 0; lastPhase = null;
-  document.getElementById('countNum').textContent = document.getElementById('bigCount2').textContent = '0';
-  document.getElementById('phasePill').textContent = '---';
-  document.getElementById('phasePill').className = 'phase-pill';
+function resetCount(){
+  count=0;lastPhase=null;
+  document.getElementById('countNum').textContent=document.getElementById('bigCount2').textContent='0';
+  document.getElementById('phasePill').textContent='---';
+  document.getElementById('phasePill').className='phase-pill';
 }
 </script>
 </body>

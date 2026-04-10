@@ -90,4 +90,4 @@ The app uses exact versions that are compatible with Teachable Machine:
 | `Pt.fromPixels is not a function` | Wrong TF version — use exactly `tfjs@1.3.1` |
 | Model fails to load | Check that the URL ends with `/` and the model is set to public |
 | Camera shows black | Allow camera access in browser permissions |
-| Reps not counting | Adjust your training data or lower the confidence threshold in the code (`CONFIDENCE = 0.72`) |
+| Reps not counting | Adjust your training data or lower the confidence threshold in the code (Line 128 `CONFIDENCE = 0.72`) |

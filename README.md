@@ -21,6 +21,10 @@ A browser-based pushup counter powered by [Teachable Machine](https://teachablem
 2. Click **Go Live** in the bottom right corner of VS Code
 3. The app opens at `http://127.0.0.1:5500/pushup-tracker.html`
 
+**OR:**
+1. Visit the Website: https://pushup-tracker.w3spaces.com/
+2. Paste the Link for this pre-Made model: https://teachablemachine.withgoogle.com/models/jJi-ZhvH0/
+
 ---
 
 ## Training Your Model

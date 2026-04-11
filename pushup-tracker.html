@@ -34,6 +34,15 @@ button.ghost:hover { color:#888; border-color:#3a3a4a; background:transparent; }
 .dbg .line.err  { color:#f87171; }
 .dbg .line.warn { color:#fbbf24; }
 .dbg .line.info { color:#60a5fa; }
+.file-list { width:100%; max-width:800px; background:#16161c; border:1px solid #1e1e28; border-radius:14px; padding:0.75rem 1.25rem; display:none; flex-direction:column; gap:0.4rem; }
+.frow { display:flex; align-items:center; gap:0.75rem; font-size:0.75rem; padding:0.25rem 0; border-bottom:1px solid #1e1e28; }
+.frow:last-of-type { border-bottom:none; }
+.ficon { width:16px; font-size:0.8rem; }
+.fname { flex:1; color:#f0f0ee; font-family:monospace; }
+.fsize { color:#3a3a4e; width:60px; text-align:right; }
+.fdel { color:#3a3a4e; cursor:pointer; padding:0 4px; } .fdel:hover { color:#f87171; }
+.fstatus { font-size:0.72rem; padding-top:0.4rem; letter-spacing:0.05em; }
+.fstatus.ok { color:#4ade80; } .fstatus.warn { color:#fbbf24; }
 .cam-wrap { width:100%; max-width:800px; position:relative; border-radius:18px; overflow:hidden; background:#10101a; aspect-ratio:4/3; }
 #video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
 #overlay { position:absolute; inset:0; width:100%; height:100%; }
@@ -74,8 +83,11 @@ select { background:#16161c; border:1px solid #25252e; border-radius:8px; color:
 </div>
 <div class="url-row">
   <input type="text" id="modelUrl" placeholder="Teachable Machine URL..." />
+  <button class="ghost" onclick="document.getElementById('filePicker').click()">Lokale Dateien</button>
   <button onclick="startTracker()">Start</button>
 </div>
+<!-- hidden file input for local model files -->
+<input type="file" id="filePicker" accept=".json,.bin" multiple style="display:none" onchange="handleLocalFiles(this.files)" />
 <div class="status-panel">
   <div class="status-row"><div class="s-dot" id="st-tf"></div><span class="s-label">TensorFlow.js</span><span class="s-val" id="sv-tf">wartend...</span></div>
   <div class="status-row"><div class="s-dot" id="st-tm"></div><span class="s-label">Teachable Machine</span><span class="s-val" id="sv-tm">wartend...</span></div>
@@ -84,6 +96,7 @@ select { background:#16161c; border:1px solid #25252e; border-radius:8px; color:
   <div class="status-row"><div class="s-dot" id="st-pred"></div><span class="s-label">Konfidenz-Signal</span><span class="s-val" id="sv-pred">wartend...</span></div>
 </div>
 <div class="dbg" id="dbg"></div>
+<div class="file-list" id="fileList"></div>
 <div class="cam-wrap">
   <video id="video" playsinline autoplay muted></video>
   <canvas id="overlay"></canvas>
@@ -126,7 +139,7 @@ select { background:#16161c; border:1px solid #25252e; border-radius:8px; color:
 <script>
 var model, overlayCtx, video, overlayCanvas, offscreen, offCtx;
 var count = 0, lastPhase = null, classNames = [], running = false;
-var CONFIDENCE = 0.75;
+var CONFIDENCE = 0.72;
 var frameCount = 0, lastFrameTime = Date.now();
 
 function dbg(msg, type) {
@@ -163,16 +176,127 @@ window.addEventListener('load', function() {
   }
 });
 
+// Local file storage
+var localFiles = {};
+
+function handleLocalFiles(files) {
+  for (var i = 0; i < files.length; i++) {
+    localFiles[files[i].name] = files[i];
+  }
+  renderFileList();
+  dbg('Dateien: ' + Object.keys(localFiles).join(', '), 'info');
+}
+
+function renderFileList() {
+  var box = document.getElementById('fileList');
+  var names = Object.keys(localFiles);
+  if (names.length === 0) { box.style.display='none'; return; }
+  box.style.display = 'flex';
+  var hasModel   = !!localFiles['model.json'];
+  var hasMeta    = !!localFiles['metadata.json'];
+  var rows = names.map(function(n) {
+    var ok = (n==='model.json'||n==='metadata.json'||n.endsWith('.bin'));
+    return '<div class="frow"><span class="ficon" style="color:'+(ok?'#4ade80':'#fbbf24')+'">'+(ok?'✓':'?')+'</span>'
+      +'<span class="fname">'+n+'</span>'
+      +'<span class="fsize">'+(localFiles[n].size/1024).toFixed(1)+' KB</span>'
+      +'<span class="fdel" onclick="removeFile(\''+n+'\')">✕</span></div>';
+  }).join('');
+  var status = (!hasModel||!hasMeta)
+    ? '<div class="fstatus warn">⚠ model.json und metadata.json benoetigt</div>'
+    : '<div class="fstatus ok">✓ Bereit — jetzt Start druecken</div>';
+  box.innerHTML = rows + status;
+}
+
+function removeFile(name) {
+  delete localFiles[name];
+  renderFileList();
+}
+
+function readFileAsText(file) {
+  return new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(e){res(e.target.result);}; r.onerror=rej; r.readAsText(file); });
+}
+function readFileAsBuffer(file) {
+  return new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(e){res(e.target.result);}; r.onerror=rej; r.readAsArrayBuffer(file); });
+}
+
+async function loadLocalModel() {
+  // Read model.json
+  var modelJson = JSON.parse(await readFileAsText(localFiles['model.json']));
+  var metaJson  = JSON.parse(await readFileAsText(localFiles['metadata.json']));
+
+  // Read all .bin files as ArrayBuffers
+  var weightData = [];
+  if (modelJson.weightsManifest) {
+    for (var m = 0; m < modelJson.weightsManifest.length; m++) {
+      var paths = modelJson.weightsManifest[m].paths;
+      for (var p = 0; p < paths.length; p++) {
+        var basename = paths[p].split('/').pop();
+        var file = localFiles[basename];
+        if (!file) { throw new Error('Datei nicht gefunden: ' + basename); }
+        var buf = await readFileAsBuffer(file);
+        weightData.push(buf);
+      }
+    }
+  }
+
+  // Use tf.io.fromMemory to load model entirely from memory — no fetch needed
+  var modelArtifacts = {
+    modelTopology: modelJson.modelTopology || modelJson,
+    weightSpecs: [],
+    weightData: null,
+    format: modelJson.format,
+    generatedBy: modelJson.generatedBy,
+    convertedBy: modelJson.convertedBy
+  };
+
+  // Flatten weightSpecs from manifest
+  if (modelJson.weightsManifest) {
+    modelJson.weightsManifest.forEach(function(m) {
+      m.weights.forEach(function(w) { modelArtifacts.weightSpecs.push(w); });
+    });
+  }
+
+  // Concatenate all weight ArrayBuffers into one
+  var totalBytes = weightData.reduce(function(s,b){ return s+b.byteLength; }, 0);
+  var combined = new Uint8Array(totalBytes);
+  var offset = 0;
+  weightData.forEach(function(buf) {
+    combined.set(new Uint8Array(buf), offset);
+    offset += buf.byteLength;
+  });
+  modelArtifacts.weightData = combined.buffer;
+
+  // Load the posenet backbone via tf.io.fromMemory, then wrap with tmPose
+  // tmPose.load accepts a tf.io.IOHandler as first argument
+  var ioHandler = tf.io.fromMemory(modelArtifacts);
+
+  // metadata needs to be passed as URL — use blob for metadata only
+  var metaBlob = new Blob([JSON.stringify(metaJson)], {type:'application/json'});
+  var metaUrl  = URL.createObjectURL(metaBlob);
+
+  return await tmPose.load(ioHandler, metaUrl);
+}
+
 async function startTracker() {
   if (running) return;
-  var url = document.getElementById('modelUrl').value.trim();
-  if (!url) { dbg('Keine URL!','err'); return; }
-  if (!url.endsWith('/')) url += '/';
+  var input = document.getElementById('modelUrl').value.trim();
+  var usingLocal = Object.keys(localFiles).length > 0 && !input;
+
+  if (!usingLocal && !input) { dbg('URL eingeben oder lokale Dateien auswaehlen.','err'); return; }
 
   setStatus('tm','warn','Lade Modell...');
-  dbg('Lade: '+url);
   try {
-    model = await tmPose.load(url+'model.json', url+'metadata.json');
+    if (usingLocal) {
+      if (!localFiles['model.json'] || !localFiles['metadata.json']) {
+        dbg('model.json und metadata.json fehlen!','err'); return;
+      }
+      dbg('Modus: Lokale Dateien','info');
+      model = await loadLocalModel();
+    } else {
+      var url = input.endsWith('/') ? input : input + '/';
+      dbg('Modus: Online-URL → '+url,'info');
+      model = await tmPose.load(url+'model.json', url+'metadata.json');
+    }
     classNames = model.getClassLabels();
     setStatus('tm','ok','Klassen: '+classNames.join(', '));
     dbg('Modell OK: '+classNames.join(', '),'info');
